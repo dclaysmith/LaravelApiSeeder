@@ -43,7 +43,23 @@ class ApiSeeder extends Seeder
     public $offset_rows = 0;
 
     /**
+     * Guzzle HTTP Client
+     *
+     * @var string
+     */
+    public $httpClient;
+
+    /**
+     * Array of HTTP Headers to send with the request
+     *
+     * @var string
+     */
+    public $headers = [];
+
+    /**
      * Endpoint to POST to
+     *
+     * @var string
      */
     public $endpoint;
 
@@ -67,6 +83,11 @@ class ApiSeeder extends Seeder
      */
     public function run()
     {
+        $this->httpClient = new \GuzzleHttp\Client([
+            'verify' => false,
+            'headers' => $this->headers
+        ]);
+
         $this->seedFromCSV($this->filename, $this->csv_delimiter);
     }
 
@@ -208,7 +229,13 @@ class ApiSeeder extends Seeder
 
             $postData = $this->formatter($seedData);
 
-            dd($postData);
+            $this->httpClient->request('POST', $this->endpoint, [
+                'json' => $postData
+            ]);
+
+            // $res = $this->httpClient->sendAsync(
+            //     new \GuzzleHttp\Psr7\Request('POST', $this->endpoint, [ 'json' => $postData ])
+            // );
         } catch (\Exception $e) {
             Log::error("CSV insert failed: " . $e->getMessage() . " - CSV " . $this->filename);
             return FALSE;
