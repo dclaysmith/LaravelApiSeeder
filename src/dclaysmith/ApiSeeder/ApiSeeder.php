@@ -4,54 +4,36 @@ namespace dclaysmith\ApiSeeder;
 
 use App;
 use Log;
-use DB;
-use Hash;
 use Illuminate\Database\Seeder;
 use Illuminate\Database\Schema;
-
+use GuzzleHttp\Client;
 
 class ApiSeeder extends Seeder
 {
 
-	/**
-	 * DB table name
-	 *
-	 * @var string
-	 */
-	public $table;
+    /**
+     * CSV filename
+     *
+     * @var string
+     */
+    public $filename;
 
-	/**
-	 * CSV filename
-	 *
-	 * @var string
-	 */
-	public $filename;
+    /**
+     * DB field that to be hashed, most likely a password field.
+     * If your password has a different name, please overload this
+     * variable from our seeder class.
+     *
+     * @var string
+     */
 
-	/**
-	 * DB field that to be hashed, most likely a password field.
-	 * If your password has a different name, please overload this
-	 * variable from our seeder class.
-	 *
-	 * @var string
-	 */
+    public $hashable = 'password';
 
-	public $hashable = 'password';
-
-	/**
-	 * An SQL INSERT query will execute every time this number of rows
-	 * are read from the CSV. Without this, large INSERTS will silently
-	 * fail.
-	 *
-	 * @var int
-	 */
-	public $insert_chunk_size = 50;
-
-	/**
-	 * CSV delimiter (defaults to ,)
-	 *
-	 * @var string
-	 */
-	public $csv_delimiter = ',';
+    /**
+     * CSV delimiter (defaults to ,)
+     *
+     * @var string
+     */
+    public $csv_delimiter = ',';
 
     /**
      * Number of rows to skip at the start of the CSV
@@ -60,6 +42,10 @@ class ApiSeeder extends Seeder
      */
     public $offset_rows = 0;
 
+    /**
+     * Endpoint to POST to
+     */
+    public $endpoint;
 
     /**
      * The mapping of CSV to DB column. If not specified manually, the first
@@ -76,28 +62,27 @@ class ApiSeeder extends Seeder
      */
     public $mapping = [];
 
-
-	/**
-	 * Run DB seed
-	 */
-	public function run()
-	{
+    /**
+     * Run DB seed
+     */
+    public function run()
+    {
         $this->seedFromCSV($this->filename, $this->csv_delimiter);
-	}
+    }
 
-	/**
-	 * Strip UTF-8 BOM characters from the start of a string
-	 *
-	 * @param  string $text
-	 * @return string       String with BOM stripped
-	 */
-	public function stripUtf8Bom( $text )
-	{
-		$bom = pack('H*','EFBBBF');
-		$text = preg_replace("/^$bom/", '', $text);
+    /**
+     * Strip UTF-8 BOM characters from the start of a string
+     *
+     * @param  string $text
+     * @return string       String with BOM stripped
+     */
+    public function stripUtf8Bom( $text )
+    {
+        $bom = pack('H*','EFBBBF');
+        $text = preg_replace("/^$bom/", '', $text);
 
         return $text;
-	}
+    }
 
     /**
      * Opens a CSV file and returns it as a resource
@@ -124,24 +109,24 @@ class ApiSeeder extends Seeder
         return $handle;
     }
 
-	/**
-	 * Collect data from a given CSV file and return as array
-	 *
-	 * @param string $filename
-	 * @param string $deliminator
-	 * @return array|bool
-	 */
-	public function seedFromCSV($filename, $deliminator = ",")
-	{
+    /**
+     * Collect data from a given CSV file and return as array
+     *
+     * @param string $filename
+     * @param string $deliminator
+     * @return array|bool
+     */
+    public function seedFromCSV($filename, $deliminator = ",")
+    {
         $handle = $this->openCSV($filename);
 
         // CSV doesn't exist or couldn't be read from.
         if ( $handle === FALSE )
             return [];
 
-		$header = NULL;
-		$row_count = 0;
-		$data = [];
+        $header = NULL;
+        $row_count = 0;
+        $data = [];
         $mapping = $this->mapping ?: [];
         $offset = $this->offset_rows;
 
@@ -171,35 +156,18 @@ class ApiSeeder extends Seeder
             else
             {
                 $row = $this->readRow($row, $mapping);
-
                 // insert only non-empty rows from the csv file
-                if ( !$row )
-                    continue;
+                if ( !$row ) continue;
 
-                $data[$row_count] = $row;
+                $this->insert($row);
 
-                // Chunk size reached, insert
-                if ( ++$row_count == $this->insert_chunk_size )
-                {
-                    $this->insert($data);
-                    $row_count = 0;
-                    // clear the data array explicitly when it was inserted so
-                    // that nothing is left, otherwise a leftover scenario can
-                    // cause duplicate inserts
-                    $data = array();
-                }
             }
         }
 
-        // Insert any leftover rows
-        //check if the data array explicitly if there are any values left to be inserted, if insert them
-        if ( count($data)  )
-            $this->insert($data);
-
         fclose($handle);
 
-		return $data;
-	}
+        return $data;
+    }
 
     /**
      * Read a CSV row into a DB insertable array
@@ -234,16 +202,22 @@ class ApiSeeder extends Seeder
      * @param array $seedData
      * @return bool   TRUE on success else FALSE
      */
-	public function insert( array $seedData )
-	{
-		try {
-            DB::table($this->table)->insert($seedData);
-		} catch (\Exception $e) {
+    public function insert( array $seedData )
+    {
+        try {
+
+            $postData = $this->formatter($seedData);
+
+            dd($postData);
+        } catch (\Exception $e) {
             Log::error("CSV insert failed: " . $e->getMessage() . " - CSV " . $this->filename);
             return FALSE;
-		}
+        }
 
         return TRUE;
-	}
+    }
 
+    public function formatter($data) {
+        return $data;
+    }
 }

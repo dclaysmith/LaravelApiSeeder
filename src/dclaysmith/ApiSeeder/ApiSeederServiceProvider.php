@@ -40,7 +40,7 @@ class CsvSeederServiceProvider extends ServiceProvider {
 	 */
 	public function provides()
 	{
-		return array();
+		return [];
 	}
 
 }
