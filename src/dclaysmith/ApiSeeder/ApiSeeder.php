@@ -169,7 +169,7 @@ class ApiSeeder extends Seeder
 
                 // skip csv columns that don't exist in the database
                 foreach($mapping  as $index => $fieldname){
-                    if (!DB::getSchemaBuilder()->hasColumn($this->table, $fieldname)){
+                    if (!\DB::getSchemaBuilder()->hasColumn($this->table, $fieldname)){
                        array_pull($mapping, $index);
                     }
                 }
